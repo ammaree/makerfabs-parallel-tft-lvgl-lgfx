@@ -10,8 +10,8 @@
 #define TAG "Demo"
 
 // these do not have to be the same, not sure what is optimal
-#define TASK_SLEEP_PERIOD_MS 4
-#define LV_TICK_PERIOD_MS 4
+#define TASK_SLEEP_PERIOD_MS 10
+#define LV_TICK_PERIOD_MS 10
 
 #define LGFX_USE_V1
 
@@ -35,14 +35,14 @@
     #define LV_BUFFER_SIZE 60 /* if not double buffering, then buf will be 2x this */
   #endif
 #else
-#error I don't know which board you're talking to! . ./set-target esp32s2 or esp32s3
+#error "I don't know which board you're talking to! . ./set-target esp32s2 or esp32s3"
 #endif
 
 // Uncomment to test benchmark speed without display refresh. You won't see any output on screen, look in the log window to see results
 //#define DISABLE_FLUSH_DURING_BENCHMARK
 
 #if defined(DISABLE_FLUSH_DURING_BENCHMARK) && !CONFIG_LV_USE_LOG
-#error You'll need to enable LVGL logging (and probably set log to printf) in the menuconfig to get results.
+	#error "You'll need to enable LVGL logging (and probably set log to printf) in the menuconfig to get results."
 #endif
 
 static LGFX lcd;
@@ -52,42 +52,43 @@ static LGFX lcd;
 
 /*** Setup screen resolution for LVGL ***/
 #ifdef LANDSCAPE
-static const uint16_t screenWidth = 480;
-static const uint16_t screenHeight = 320;
+	static const uint16_t screenWidth = 480;
+	static const uint16_t screenHeight = 320;
 #else
-static const uint16_t screenWidth = 320;
-static const uint16_t screenHeight = 480;
+	static const uint16_t screenWidth = 320;
+	static const uint16_t screenHeight = 480;
 #endif
 static lv_disp_draw_buf_t draw_buf;
 
 #ifdef LV_DOUBLE_BUFFER
-static lv_color_t buf[screenWidth * LV_BUFFER_SIZE];
-static lv_color_t buf2[screenWidth * LV_BUFFER_SIZE];
+	static lv_color_t buf[screenWidth * LV_BUFFER_SIZE];
+	static lv_color_t buf2[screenWidth * LV_BUFFER_SIZE];
 #else
-static lv_color_t buf[screenWidth * LV_BUFFER_SIZE * 2];
+	static lv_color_t buf[screenWidth * LV_BUFFER_SIZE * 2];
 #endif
 
 typedef void (*function_pointer_t)(void);
 
-typedef struct demo_button
-{
+typedef struct demo_button {
     const char * const name;
     function_pointer_t function;
 } demo_button_t;
 
 /* List of buttons to create, and the associated demo function that needs to be called when clicked */
 static demo_button_t demos[] = {
-    {"Music", lv_demo_music},
-    {"Widgets", lv_demo_widgets},
-    {"Encoder", lv_demo_keypad_encoder},
-    {"Benchmark", lv_demo_benchmark},
-    {"Stress", lv_demo_stress}
+    { "Music", lv_demo_music },
+    { "Widgets", lv_demo_widgets },
+    { "Encoder", lv_demo_keypad_encoder },
+    { "Benchmark", lv_demo_benchmark },
+    { "Stress", lv_demo_stress }
 };
 
 
 static lv_obj_t *demo_selection_panel;
 
-static bool disable_flush = false;
+#ifdef DISABLE_FLUSH_DURING_BENCHMARK
+	static bool disable_flush = false;
+#endif
 
 /*** Function declaration ***/
 static void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p);
@@ -95,33 +96,28 @@ static void touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data);
 static void lv_tick_task(void *arg);
 
 /* Button event handler */
-static void button_event_handler(lv_event_t *e)
-{
+static void button_event_handler(lv_event_t *e) {
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t *btn = lv_event_get_target(e);
-    if (code == LV_EVENT_CLICKED)
-    {
-        function_pointer_t demo_function = (function_pointer_t)lv_event_get_user_data(e);
-        if (demo_function)
-        {
+    if (code == LV_EVENT_CLICKED) {
+        function_pointer_t demo_function = (function_pointer_t) lv_event_get_user_data(e);
+        if (demo_function) {
             lv_obj_t *label = lv_obj_get_child(btn, 0);
             ESP_LOGI(TAG, "Starting %s", lv_label_get_text(label));
 
-#ifdef DISABLE_FLUSH_DURING_BENCHMARK
-            if (demo_function == lv_demo_benchmark)
-            {
+			#ifdef DISABLE_FLUSH_DURING_BENCHMARK
+            if (demo_function == lv_demo_benchmark) {
                 ESP_LOGI(TAG, "Starting benchmark with flush disabled. Wait a couple minutes for benchmark results. They'll be here soon.");
                 disable_flush = true;
             }
-#endif
+			#endif
             demo_function();
             lv_obj_del(demo_selection_panel);
         }
     }
 }
 
-static void init_lvgl_lgfx()
-{
+static void init_lvgl_lgfx(void) {
     lcd.init();
     lv_init();
 
@@ -157,14 +153,14 @@ static void init_lvgl_lgfx()
     /* Create and start a periodic timer interrupt to call lv_tick_inc */
     const esp_timer_create_args_t periodic_timer_args = {
         .callback = &lv_tick_task,
-        .name = "periodic_gui"};
+        .name = "periodic_gui"
+    };
     esp_timer_handle_t periodic_timer;
     ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
     ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, LV_TICK_PERIOD_MS * 1000));
 }
 
-extern "C" void app_main(void)
-{
+extern "C" void app_main(void) {
     init_lvgl_lgfx();
 
     ESP_LOGI(TAG, "Ready to start a demo. Tap a button on screen. Reset the board with the reset button or Ctrl+T Ctrl+R to pick a new one.");
@@ -176,8 +172,7 @@ extern "C" void app_main(void)
     lv_obj_set_flex_flow(demo_selection_panel, LV_FLEX_FLOW_ROW);
     lv_obj_align(demo_selection_panel, LV_ALIGN_CENTER, 0, 20);
 
-    for(auto& demo : demos)
-    {
+    for(auto& demo : demos) {
         lv_obj_t * btn = lv_btn_create(demo_selection_panel);
         lv_obj_set_size(btn, 120, lv_pct(100));
 
@@ -191,23 +186,20 @@ extern "C" void app_main(void)
     lv_obj_update_snap(demo_selection_panel, LV_ANIM_ON);
 
     /* UI thread */
-    while (true)
-    {
+    while (true) {
         lv_timer_handler(); /* let the GUI do its work */
         vTaskDelay(pdMS_TO_TICKS(TASK_SLEEP_PERIOD_MS));
     }
 }
 
 /*** Display callback to flush the buffer to screen ***/
-static void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p)
-{
-#ifdef DISABLE_FLUSH_DURING_BENCHMARK
-    if (disable_flush)
-    {
+static void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
+	#ifdef DISABLE_FLUSH_DURING_BENCHMARK
+    if (disable_flush) {
         lv_disp_flush_ready(disp);
         return;
     }
-#endif
+	#endif
     uint32_t w = (area->x2 - area->x1 + 1);
     uint32_t h = (area->y2 - area->y1 + 1);
 
@@ -220,17 +212,13 @@ static void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t
 }
 
 /*** Touchpad callback to read the touchpad ***/
-static void touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
-{
+static void touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data) {
     uint16_t touchX, touchY;
     bool touched = lcd.getTouch(&touchX, &touchY);
 
-    if (!touched)
-    {
+    if (!touched) {
         data->state = LV_INDEV_STATE_REL;
-    }
-    else
-    {
+    } else {
         data->state = LV_INDEV_STATE_PR;
 
         /*Set the coordinates*/
@@ -240,8 +228,4 @@ static void touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
 }
 
 /* Setting up tick task for lvgl */
-static void lv_tick_task(void *arg)
-{
-    (void)arg;
-    lv_tick_inc(LV_TICK_PERIOD_MS);
-}
+static void lv_tick_task(void *arg) { (void)arg; lv_tick_inc(LV_TICK_PERIOD_MS); }
