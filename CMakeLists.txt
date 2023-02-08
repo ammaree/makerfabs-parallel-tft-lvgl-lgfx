@@ -4,6 +4,8 @@ cmake_minimum_required(VERSION 3.5)
 
 set(CMAKE_CXX_STANDARD 17)
 
+set( EXTRA_COMPONENT_DIRS "../../z-repo/lovyan" "../../z-repo/lvgl" )
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 project(MakerFabs-Parallel-TFT)
