@@ -5,3 +5,4 @@ sdkconfig
 sdkconfig.old
 /build/
 build
+.DS_Store
